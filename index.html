@@ -3,69 +3,321 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Aplikasi Cuaca</title>
-    <!-- Memuat Tailwind CSS untuk styling cepat -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Memuat Font Awesome untuk ikon -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-    <!-- Menghubungkan ke file CSS eksternal -->
-    <link rel="stylesheet" href="style.css">
+    <title>Aplikasi Cuaca Terkini dengan Peta</title>
+    
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+    
+    <style>
+        /* CSS untuk Styling Aplikasi */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #74b9ff, #0984e3);
+            display: flex;
+            justify-content: center;
+            align-items: flex-start; /* Diubah agar tidak memaksa ke tengah vertikal */
+            min-height: 100vh;
+            padding: 20px 0;
+            color: #333;
+        }
+
+        .weather-app {
+            background: rgba(255, 255, 255, 0.9);
+            padding: 30px;
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            width: 90%;
+            max-width: 450px;
+            text-align: center;
+            transition: transform 0.3s ease;
+        }
+
+        .weather-app:hover {
+            transform: translateY(-5px);
+        }
+
+        h1 {
+            color: #2d3436;
+            margin-bottom: 20px;
+            font-size: 28px;
+        }
+
+        .search-box {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 25px;
+        }
+
+        #city-input {
+            flex: 1;
+            padding: 12px 15px;
+            border: 2px solid #dfe6e9;
+            border-radius: 10px;
+            font-size: 16px;
+            outline: none;
+            transition: border-color 0.3s;
+        }
+
+        #city-input:focus {
+            border-color: #74b9ff;
+        }
+
+        #search-btn {
+            padding: 12px 20px;
+            border: none;
+            background-color: #0984e3;
+            color: white;
+            border-radius: 10px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        #search-btn:hover {
+            background-color: #74b9ff;
+        }
+
+        #weather-result, #map-container {
+            display: none; /* Sembunyikan awalnya */
+        }
+
+        #weather-result.show, #map-container.show {
+            display: block; /* Tampilkan saat ada data */
+            animation: fadeIn 0.5s;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        #city-name {
+            font-size: 24px;
+            color: #2d3436;
+            margin-bottom: 10px;
+        }
+
+        #weather-icon {
+            width: 120px;
+            height: 120px;
+            margin: 10px 0;
+        }
+
+        #temperature {
+            font-size: 48px;
+            font-weight: bold;
+            color: #2d3436;
+        }
+
+        #description {
+            font-size: 18px;
+            color: #636e72;
+            text-transform: capitalize;
+            margin-top: 5px;
+        }
+
+        .details {
+            display: flex;
+            justify-content: space-around;
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid #dfe6e9;
+        }
+
+        .details p {
+            font-size: 16px;
+            color: #636e72;
+        }
+
+        .details span {
+            font-weight: bold;
+            color: #2d3436;
+        }
+
+        #error-message {
+            color: #d63031;
+            background-color: #ffeaa7;
+            padding: 10px;
+            border-radius: 10px;
+            margin-top: 15px;
+            display: none; /* Sembunyikan awalnya */
+        }
+
+        #error-message.show {
+            display: block;
+        }
+        
+        /* Style untuk Peta */
+        #map-container {
+            margin-top: 20px;
+            border-radius: 15px;
+            overflow: hidden; /* Agar sudut border-radius teraptil pada peta */
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+
+        #map {
+            height: 250px; /* Tinggi peta */
+            width: 100%;
+        }
+
+    </style>
 </head>
-<body class="bg-gradient-to-br from-blue-400 to-indigo-600 flex items-center justify-center min-h-screen p-4">
+<body>
 
-
-    <!-- Kontainer utama aplikasi -->
-    <div class="weather-card w-full max-w-md p-6 sm:p-8 rounded-2xl shadow-lg text-white">
-        <h1 class="text-3xl font-bold text-center mb-6">Aplikasi Cuaca</h1>
-       
-        <!-- Bagian Pencarian -->
-        <div class="flex mb-6 shadow-md rounded-lg">
-            <input type="text" id="cityInput" class="w-full bg-white/20 text-white custom-placeholder px-4 py-3 rounded-l-lg focus:outline-none focus:ring-2 focus:ring-blue-300 transition-shadow" placeholder="Masukkan nama kota...">
-            <button id="searchBtn" class="bg-blue-500 hover:bg-blue-600 text-white px-5 py-3 rounded-r-lg transition-colors">
-                <i class="fas fa-search"></i>
-            </button>
+    <div class="weather-app">
+        <h1>Aplikasi Cuaca Terkini</h1>
+        
+        <div class="search-box">
+            <input type="text" id="city-input" placeholder="Masukkan nama kota...">
+            <button id="search-btn">Cari Cuaca</button>
         </div>
 
+        <div id="error-message"></div>
 
-        <!-- Bagian Tampilan Cuaca (awalnya tersembunyi) -->
-        <div id="weatherInfo" class="text-center hidden">
-            <h2 id="cityName" class="text-4xl font-semibold">Nama Kota</h2>
-            <img id="weatherIcon" src="https://placehold.co/100x100/ffffff/000000?text=Icon" alt="Ikon Cuaca" class="mx-auto my-4 w-24 h-24">
-            <p id="temperature" class="text-6xl font-bold">--°C</p>
-            <p id="description" class="text-xl capitalize mt-2">Kondisi</p>
-           
-            <div class="flex justify-around mt-6 text-lg bg-white/10 p-4 rounded-lg">
-                <div class="flex items-center space-x-2">
-                    <i class="fas fa-tint fa-lg"></i>
-                    <div>
-                        <p id="humidity" class="font-bold">--%</p>
-                        <p class="text-sm">Kelembapan</p>
-                    </div>
-                </div>
-                <div class="flex items-center space-x-2">
-                    <i class="fas fa-wind fa-lg"></i>
-                    <div>
-                        <p id="windSpeed" class="font-bold">-- km/h</p>
-                        <p class="text-sm">Kecepatan Angin</p>
-                    </div>
-                </div>
+        <div id="weather-result">
+            <h2 id="city-name"></h2>
+            <img id="weather-icon" src="" alt="Ikon Cuaca">
+            <p id="temperature"></p>
+            <p id="description"></p>
+            <div class="details">
+                <p>Kelembapan: <span id="humidity"></span>%</p>
+                <p>Kecepatan Angin: <span id="wind-speed"></span> m/s</p>
             </div>
         </div>
-       
-        <!-- Pesan Error (awalnya tersembunyi) -->
-        <div id="errorMessage" class="text-center bg-red-500/50 p-3 rounded-lg mt-4 hidden">
-            <p>Kota tidak ditemukan. Silakan coba lagi.</p>
-        </div>
 
-
-         <!-- Pesan Awal -->
-        <div id="initialMessage" class="text-center text-gray-200 mt-8">
-            <p>Masukkan nama kota untuk melihat prakiraan cuaca saat ini.</p>
+        <!-- Kontainer untuk Peta -->
+        <div id="map-container">
+            <div id="map"></div>
         </div>
     </div>
 
+    <!-- Leaflet JavaScript -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 
-    <!-- Menghubungkan ke file JavaScript eksternal -->
-    <script src="script.js"></script>
+    <script>
+        // JavaScript untuk Logika Aplikasi
+
+        // --- GANTI 'YOUR_API_KEY' DENGAN KUNCI API ANDA ---
+        const apiKey = '795ffe99aa00b9e9667229244f25de7d'; 
+        // -----------------------------------------------
+
+        const cityInput = document.getElementById('city-input');
+        const searchBtn = document.getElementById('search-btn');
+        const weatherResult = document.getElementById('weather-result');
+        const mapContainer = document.getElementById('map-container');
+        const errorMessage = document.getElementById('error-message');
+
+        const cityNameEl = document.getElementById('city-name');
+        const weatherIconEl = document.getElementById('weather-icon');
+        const temperatureEl = document.getElementById('temperature');
+        const descriptionEl = document.getElementById('description');
+        const humidityEl = document.getElementById('humidity');
+        const windSpeedEl = document.getElementById('wind-speed');
+
+        // --- Inisialisasi Peta ---
+        let map; // Variabel untuk objek peta
+        let marker; // Variabel untuk penanda (marker)
+
+        // Fungsi untuk membuat peta awal
+        function initMap() {
+            // Set view ke dunia dengan zoom rendah
+            map = L.map('map').setView([0, 0], 2);
+            
+            // Tambahkan tile layer dari OpenStreetMap
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+            }).addTo(map);
+        }
+        
+        // Panggil fungsi initMap saat halaman dimuat
+        initMap();
+
+        // --- Event Listener ---
+        searchBtn.addEventListener('click', () => {
+            const city = cityInput.value.trim();
+            if (city) {
+                getWeather(city);
+            } else {
+                showError('Silakan masukkan nama kota.');
+            }
+        });
+
+        cityInput.addEventListener('keydown', (event) => {
+            if (event.key === 'Enter') {
+                searchBtn.click();
+            }
+        });
+
+        // --- Fungsi Utama ---
+        async function getWeather(city) {
+            const apiUrl = `https://api.openweathermap.org/data/2.5/weather?q=${city}&appid=${apiKey}&units=metric&lang=id`;
+
+            try {
+                const response = await fetch(apiUrl);
+                
+                if (!response.ok) {
+                    throw new Error('Kota tidak ditemukan. Coba lagi.');
+                }
+
+                const data = await response.json();
+                displayWeather(data);
+
+            } catch (error) {
+                showError(error.message);
+            }
+        }
+
+        function displayWeather(data) {
+            // Sembunyikan pesan error
+            errorMessage.classList.remove('show');
+            errorMessage.textContent = '';
+
+            // Ambil data dari API
+            const { name, coord } = data;
+            const { icon, description } = data.weather[0];
+            const { temp, humidity } = data.main;
+            const { speed } = data.wind;
+
+            // Update elemen HTML cuaca
+            cityNameEl.textContent = name;
+            temperatureEl.textContent = `${Math.round(temp)}°C`;
+            descriptionEl.textContent = description;
+            humidityEl.textContent = humidity;
+            windSpeedEl.textContent = speed;
+            weatherIconEl.src = `https://openweathermap.org/img/wn/${icon}@2x.png`;
+
+            // --- Logika untuk Peta ---
+            // Hapus marker lama jika ada
+            if (marker) {
+                map.removeLayer(marker);
+            }
+
+            // Setel ulang view peta ke lokasi baru dengan zoom yang lebih dekat
+            map.setView([coord.lat, coord.lon], 12);
+
+            // Tambahkan marker baru
+            marker = L.marker([coord.lat, coord.lon]).addTo(map);
+            
+            // Tambahkan popup ke marker
+            marker.bindPopup(`<b>${name}</b><br>Suhu: ${Math.round(temp)}°C`).openPopup();
+
+            // Tampilkan hasil cuaca dan peta
+            weatherResult.classList.add('show');
+            mapContainer.classList.add('show');
+        }
+
+        function showError(message) {
+            weatherResult.classList.remove('show');
+            mapContainer.classList.remove('show'); // Sembunyikan peta juga saat error
+            errorMessage.textContent = message;
+            errorMessage.classList.add('show');
+        }
+    </script>
 </body>
 </html>
